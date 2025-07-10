@@ -1,6 +1,7 @@
 """Fit session related functions."""
 
-from typing import List, Literal, Tuple
+from typing import List, Literal, Tuple, Set
+import os
 
 from lightning.pytorch.utilities.types import _EVALUATE_OUTPUT
 
@@ -9,6 +10,11 @@ from eva.core.models import modules
 from eva.core.trainers import _recorder, _utils
 from eva.core.trainers import trainer as eva_trainer
 
+_COMPILATION_STRATEGIES: Set[str] = {"default", "triton.cudagraphs", "cudagraphs"}
+_compile_strategy: str | None = os.environ.get("TORCH_COMPILE")
+_compile_graph: bool = _compile_strategy in _COMPILATION_STRATEGIES
+if _compile_graph:
+    import torch
 
 def run_evaluation_session(
     base_trainer: eva_trainer.Trainer,
@@ -87,6 +93,13 @@ def run_evaluation(
     validation_scores = None
     test_scores = None
 
+    if _compile_graph:
+        if _compile_strategy == "default":
+            model = torch.compile(model)
+        elif _compile_strategy == "triton.cudagraphs":
+            model = torch.compile(model, options={"triton.cudagraphs": True})
+        elif _compile_strategy == "cudagraphs":
+            model = torch.compile(model, backend="cudagraphs")
     if "fit" in stages:
         trainer.fit(model, datamodule=datamodule)
     if "validate" in stages:
