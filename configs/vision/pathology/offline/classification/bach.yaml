@@ -78,6 +78,7 @@ data:
         init_args:
           <<: *DATASET_ARGS
           split: val
+          enable_caching: ${oc.env:ENABLE_CACHING, false}
       predict:
         - class_path: eva.vision.datasets.BACH
           init_args: &PREDICT_DATASET_ARGS

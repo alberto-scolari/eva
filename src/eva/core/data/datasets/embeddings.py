@@ -36,6 +36,7 @@ class EmbeddingsDataset(base.Dataset, Generic[TargetType]):
         column_mapping: Dict[str, str] = default_column_mapping,
         embeddings_transforms: Callable | None = None,
         target_transforms: Callable | None = None,
+        enable_caching: bool = False,
     ) -> None:
         """Initialize dataset.
 
@@ -65,6 +66,8 @@ class EmbeddingsDataset(base.Dataset, Generic[TargetType]):
         self._target_transforms = target_transforms
 
         self._data: pd.DataFrame
+        self._enable_caching = enable_caching
+        self._cache = dict()
 
         self._set_multiprocessing_start_method()
 
@@ -98,9 +101,16 @@ class EmbeddingsDataset(base.Dataset, Generic[TargetType]):
         Returns:
             A data sample and its target.
         """
+        if self._enable_caching:
+            result = self._cache.get(index)
+            if result is not None:
+                return result
         embeddings = self.load_embeddings(index)
         target = self.load_target(index)
-        return self._apply_transforms(embeddings, target)
+        result = self._apply_transforms(embeddings, target)
+        if self._enable_caching:
+            self._cache[index] = result
+        return result
 
     @abc.abstractmethod
     def load_embeddings(self, index: int) -> torch.Tensor:
