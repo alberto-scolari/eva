@@ -27,6 +27,11 @@ class EmbeddingsClassificationDataset(embeddings_base.EmbeddingsDataset[torch.Te
     @override
     def load_target(self, index: int) -> torch.Tensor:
         target = self._data.at[index, self._column_mapping["target"]]
+        # TODO: investigate why it fails! this is a (ugly!) workaround to fix the data parsing;
+        # tentative explanation: torch sometimes fails in parsing/applying
+        # the data schema and may thus return a string, causing torch.tensor() to fail;
+        if type(target) == str:
+            target = int(target)
         return torch.tensor(target, dtype=torch.int64)
 
     @override
