@@ -1,7 +1,7 @@
 """Fit session related functions."""
 
 from typing import List, Literal, Tuple, Set
-import os
+import os, time
 
 from lightning.pytorch.utilities.types import _EVALUATE_OUTPUT
 
@@ -100,22 +100,35 @@ def run_evaluation(
             model = torch.compile(model, options={"triton.cudagraphs": True})
         elif _compile_strategy == "cudagraphs":
             model = torch.compile(model, backend="cudagraphs")
+    fit_time = 0
     if "fit" in stages:
+        beg = time.perf_counter()
         trainer.fit(model, datamodule=datamodule)
+        end = time.perf_counter()
+        fit_time = end - beg
+    validate_time = 0
     if "validate" in stages:
+        beg = time.perf_counter()
         validation_scores = trainer.validate(
             model=model,
             datamodule=datamodule,
             verbose=verbose,
             ckpt_path=trainer.checkpoint_type,
         )
+        end = time.perf_counter()
+        validate_time = end - beg
+    test_time = 0
     if "test" in stages and getattr(datamodule.datasets, "test", None) is not None:
+        beg = time.perf_counter()
         test_scores = trainer.test(
             model=model,
             datamodule=datamodule,
             verbose=verbose,
             ckpt_path=trainer.checkpoint_type,
         )
+        end = time.perf_counter()
+        test_time = end - beg
+    print(f"------------- run {run_id}, fit {fit_time}, validate {validate_time}, test {test_time}")
     trainer.finish_logger_run(run_id)
     return validation_scores, test_scores
 
